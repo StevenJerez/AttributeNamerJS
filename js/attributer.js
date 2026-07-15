@@ -99,7 +99,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
   };
 })();
 
-var _VERSION = "1.3.4";
+var _VERSION = "1.3.5";
 var _BLOCKED = false;
 var _BLOCKED_MESSAGE = "Expired Attributer License";
 
@@ -262,6 +262,36 @@ var FlareTrk_Class = function FlareTrk_Class() {
     return results ? JSON.parse(window.atob(results[1])) : null;
   });
 
+  _defineProperty(this, "capData", function (value) {
+    // Browsers/servers reject request headers over ~8KB; long ad-click URLs
+    // (gclid/fbclid) stored in several fields can push this cookie past that.
+    var MAX_FIELD = 400;
+    var MAX_PAYLOAD = 3000;
+
+    var truncate = function truncate(obj, max) {
+      for (var k in obj) {
+        if (typeof obj[k] === "string" && obj[k].length > max) obj[k] = obj[k].slice(0, max);else if (obj[k] && typeof obj[k] === "object") truncate(obj[k], max);
+      }
+    };
+
+    var clone;
+
+    try {
+      clone = JSON.parse(JSON.stringify(value));
+    } catch (e) {
+      return value;
+    }
+
+    truncate(clone, MAX_FIELD);
+
+    if (window.btoa(JSON.stringify(clone)).length > MAX_PAYLOAD) {
+      delete clone.test_data;
+      truncate(clone, 150);
+    }
+
+    return clone;
+  });
+
   _defineProperty(this, "setCookie", function (value, name) {
     name = _this.storageName(name);
     var domain = document.location.hostname;
@@ -269,7 +299,7 @@ var FlareTrk_Class = function FlareTrk_Class() {
 
     for (var i = parts.length - 2; i >= 0; i--) {
       var cookie_domain = parts.slice(i).join(".");
-      var cookie_value = "".concat(name, "=").concat(window.btoa(JSON.stringify(value)));
+      var cookie_value = "".concat(name, "=").concat(window.btoa(JSON.stringify(_this.capData(value))));
       var cookie = [cookie_value, "expires=".concat(_this.getExpiration()), "path=/", "domain=".concat(cookie_domain), "secure"];
       document.cookie = cookie.join(";");
 
